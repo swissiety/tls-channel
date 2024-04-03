@@ -27,14 +27,20 @@ public class TlsChannelImpl implements ByteChannel {
 
     public static final int buffersInitialSize = 4096;
 
-    /** Official TLS max data size is 2^14 = 16k. Use 1024 more to account for the overhead */
+    /**
+     * Official TLS max data size is 2^14 = 16k. Use 1024 more to account for the overhead
+     */
     public static final int maxTlsPacketSize = 17 * 1024;
 
-    /** Used to signal EOF conditions from the underlying channel */
+    /**
+     * Used to signal EOF conditions from the underlying channel
+     */
     public static class EofException extends Exception {
         private static final long serialVersionUID = -3859156713994602991L;
 
-        /** For efficiency, override this method to do nothing. */
+        /**
+         * For efficiency, override this method to do nothing.
+         */
         @Override
         public Throwable fillInStackTrace() {
             return this;
@@ -109,17 +115,29 @@ public class TlsChannelImpl implements ByteChannel {
      * Whether a IOException was received from the underlying channel or from the {@link SSLEngine}.
      */
     private volatile boolean invalid = false;
+    /**
+     * Whether we already called {@link SSLEngine }.beginHandshake().
+     * */
+    private boolean handWasTouched = false;
 
-    /** Whether a close_notify was already sent. */
+    /**
+     * Whether a close_notify was already sent.
+     */
     private volatile boolean shutdownSent = false;
 
-    /** Whether a close_notify was already received. */
+    /**
+     * Whether a close_notify was already received.
+     */
     private volatile boolean shutdownReceived = false;
 
-    /** Decrypted data from inEncrypted */
+    /**
+     * Decrypted data from inEncrypted
+     */
     private final BufferHolder inPlain;
 
-    /** Contains data encrypted to send to the underlying channel */
+    /**
+     * Contains data encrypted to send to the underlying channel
+     */
     private final BufferHolder outEncrypted;
 
     /**
@@ -129,7 +147,9 @@ public class TlsChannelImpl implements ByteChannel {
      */
     private ByteBufferSet suppliedInPlain;
 
-    /** Bytes produced by the current read operation */
+    /**
+     * Bytes produced by the current read operation
+     */
     private int bytesToReturn;
 
     /**
@@ -230,7 +250,9 @@ public class TlsChannelImpl implements ByteChannel {
         }
     }
 
-    /** Copies bytes from the internal input plain buffer to the supplied buffer. */
+    /**
+     * Copies bytes from the internal input plain buffer to the supplied buffer.
+     */
     private int transferPendingPlain(ByteBufferSet dstBuffers) {
         inPlain.buffer.flip(); // will read
         int bytes = dstBuffers.putRemaining(inPlain.buffer);
@@ -498,8 +520,11 @@ public class TlsChannelImpl implements ByteChannel {
                 throw new ClosedChannelException();
             }
             if (force || !negotiated) {
-                logger.log(Level.FINEST, "Calling SSLEngine.beginHandshake()");
-                engine.beginHandshake();
+                if (!handWasTouched) {
+                    logger.log(Level.FINEST, "Calling SSLEngine.beginHandshake()");
+                    engine.beginHandshake();
+                    handWasTouched = true;
+                }
                 writeAndHandshake();
 
                 if (engine.getSession().getProtocol().startsWith("DTLS")) {
